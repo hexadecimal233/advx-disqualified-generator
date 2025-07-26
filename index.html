@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="一个生成禁止通行公告的工具。" />
+    <link rel="icon" href="favicon.ico" />
+    <meta property="og:title" content="禁止通行公告生成工具" />
+    <meta property="og:description" content="一个生成禁止通行公告的工具。" />
+    <meta property="og:type" content="website" />
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:title" content="禁止通行公告生成工具" />
+    <meta
+      property="twitter:description"
+      content="一个生成禁止通行公告的工具。" />
+    <title>禁止通行公告生成工具</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      .main-export-area[data-main-color] .main-block,
+      .main-export-area[data-main-color] .circle-symbol {
+        background-color: var(--main-color, #f7a623) !important;
+      }
+      .main-export-area {
+        font-family: "Noto Sans SC", "Noto Sans", "sans-serif";
+      }
+    </style>
+  </head>
+  <body class="bg-gray-900 min-h-screen text-white">
+    <div id="app">
+      <div
+        class="controls flex flex-wrap gap-4 items-center justify-center p-6 bg-gray-800 rounded-xl shadow-lg max-w-4xl mx-auto mt-8 mb-6">
+        <label class="flex items-center gap-2">
+          预设：
+          <select
+            v-model="preset"
+            @change="onPresetChange"
+            class="rounded px-2 py-1 bg-gray-700 text-white">
+            <option v-for="(item, key) in presets" :key="key" :value="key">
+              {{ item.name }}
+            </option>
+          </select>
+        </label>
+        <label class="flex items-center gap-2">
+          主色：
+          <input
+            type="color"
+            v-model="mainColor"
+            class="w-8 h-8 border-none bg-transparent" />
+        </label>
+        <label class="flex items-center gap-2">
+          标志类型：
+          <select
+            v-model="symbolType"
+            class="rounded px-2 py-1 bg-gray-700 text-white">
+            <option value="exclamation">叹号</option>
+            <option value="no">横杠</option>
+          </select>
+        </label>
+        <label class="flex items-center gap-2">
+          主标题：
+          <input
+            type="text"
+            v-model="mainText"
+            class="rounded px-2 py-1 bg-gray-700 text-white w-32" />
+        </label>
+        <label class="flex items-center gap-2">
+          副标题：
+          <input
+            type="text"
+            v-model="subText"
+            class="rounded px-2 py-1 bg-gray-700 text-white w-44" />
+        </label>
+        <label class="flex items-center gap-2">
+          说明：
+          <input
+            type="text"
+            v-model="descText"
+            class="rounded px-2 py-1 bg-gray-700 text-white w-44" />
+        </label>
+        <label class="flex items-center gap-2">
+          英文说明：
+          <input
+            type="text"
+            v-model="descTextEn"
+            class="rounded px-2 py-1 bg-gray-700 text-white w-56" />
+        </label>
+        <label class="flex items-center gap-2">
+          自定义Logo：
+          <input
+            type="file"
+            @change="onCustomLogoChange"
+            accept="image/*,image/svg+xml"
+            class="text-sm" />
+        </label>
+        <button
+          type="button"
+          @click="usePresetLogo"
+          class="px-3 py-1 rounded bg-gray-700 hover:bg-gray-600">
+          使用预设logo
+        </button>
+        <button
+          class="export-btn px-4 py-2 rounded bg-pink-600 hover:bg-pink-700 font-bold shadow"
+          @click="exportImg">
+          导出图片
+        </button>
+      </div>
+      <div class="flex justify-center">
+        <div
+          class="main-export-area relative w-[675px] h-[1125px] bg-black rounded-2xl shadow-2xl overflow-hidden"
+          id="exportArea"
+          :style="{'--main-color': mainColor}"
+          data-main-color>
+          <div
+            class="circle-symbol absolute left-1/2 top-0 translate-y-[48px] -translate-x-1/2 w-[180px] h-[180px] rounded-full flex items-center justify-center z-20"
+            :style="{background: mainColor}">
+            <img
+              :src="symbolImgSrc"
+              id="symbolImg"
+              class="w-[120px] h-[120px] object-contain"
+              alt="symbol" />
+          </div>
+          <div
+            class="main-block absolute left-6 top-[250px] w-[627px] h-[700px] rounded-xl flex flex-col items-center z-10 shadow-xl overflow-hidden"
+            :style="{background: mainColor}">
+            <div
+              class="main-title mt-16 text-[90px] font-bold text-white text-center leading-tight"
+              id="mainTitle">
+              {{ mainText }}
+            </div>
+            <div
+              class="sub-title mt-8 text-[60px] font-bold text-white text-center"
+              id="subTitle">
+              {{ subText }}
+            </div>
+            <div
+              class="desc mt-8 text-[36px] text-white text-center"
+              id="descText">
+              {{ descText }}
+            </div>
+            <div
+              class="desc-en mt-2 text-[36px] text-white text-center"
+              id="descTextEnDisplay">
+              {{ descTextEn }}
+            </div>
+            <img
+              class="logo-img absolute left-1/2 bottom-0 mb-8 -translate-x-1/2 w-[300px] h-[100px] object-contain z-30"
+              id="logoImg"
+              :src="logoImgSrc"
+              alt="logo" />
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      const presets = {
+        default: {
+          name: "游客止步",
+          mainColor: "#F7A623",
+          mainText: "此处游客止步",
+          subText: "VISITORS KEEP OUT",
+          descText: "违者将被列入黑名单",
+          descTextEn: "VIOLATORS WILL BE DISQUALIFIED",
+          logo: "assets/vector-logo.svg",
+          symbol: "exclamation",
+        },
+        "no-bad-cat": {
+          name: "禁止哈气",
+          mainColor: "#F77B8A",
+          mainText: "禁止哈气",
+          subText: "NO BEING BAD CAT",
+          descText: "违者将关进小黑屋",
+          descTextEn: "BAD CAT WILL BE PUT IN CAGE",
+          logo: "assets/vector-logo.svg",
+          symbol: "exclamation",
+        },
+        "no-shit": {
+          name: "禁止拉屎",
+          mainColor: "#9C8346",
+          mainText: "此处禁止拉屎",
+          subText: "SHIT IS NOT ALLOWED HERE",
+          descText: "违者将被列入黑名单",
+          descTextEn: "VIOLATORS WILL BE DISQUALIFIED",
+          logo: "assets/vector-logo.svg",
+          symbol: "no",
+        },
+        "no-entry": {
+          name: "禁止通行",
+          mainColor: "#D32F2F",
+          mainText: "禁止通行",
+          subText: "NO ENTRY",
+          descText: "违规者将被取消参赛资格",
+          descTextEn: "VIOLATORS WILL BE DISQUALIFIED",
+          logo: "assets/vector-logo.svg",
+          symbol: "no",
+        },
+      }
+      const { createApp } = Vue
+      createApp({
+        data() {
+          return {
+            presets,
+            preset: "default",
+            mainColor: presets["default"].mainColor,
+            symbolType: presets["default"].symbol,
+            mainText: presets["default"].mainText,
+            subText: presets["default"].subText,
+            descText: presets["default"].descText,
+            descTextEn: presets["default"].descTextEn,
+            customLogoUrl: "",
+            useCustomLogo: false,
+          }
+        },
+        computed: {
+          symbolImgSrc() {
+            if (this.symbolType === "exclamation") {
+              return "assets/exclamation.svg"
+            } else if (this.symbolType === "no") {
+              return "assets/no.svg"
+            }
+            return ""
+          },
+          logoImgSrc() {
+            if (this.useCustomLogo && this.customLogoUrl) {
+              return this.customLogoUrl
+            }
+            const preset = this.presets[this.preset]
+            return preset?.logo || "assets/vector-logo.svg"
+          },
+        },
+        methods: {
+          onPresetChange() {
+            if (this.preset === "custom") return
+            const preset = this.presets[this.preset]
+            if (preset) {
+              this.mainColor = preset.mainColor
+              this.mainText = preset.mainText
+              this.subText = preset.subText
+              this.descText = preset.descText
+              this.descTextEn = preset.descTextEn
+              this.symbolType = preset.symbol
+              this.useCustomLogo = false
+              this.customLogoUrl = ""
+            }
+          },
+          onCustomLogoChange(e) {
+            const file = e.target.files[0]
+            if (!file) return
+            const reader = new FileReader()
+            reader.onload = (evt) => {
+              this.customLogoUrl = evt.target.result
+              this.useCustomLogo = true
+            }
+            reader.readAsDataURL(file)
+          },
+          usePresetLogo() {
+            this.useCustomLogo = false
+            this.customLogoUrl = ""
+          },
+          exportImg() {
+            html2canvas(document.getElementById("exportArea"), {
+              backgroundColor: null,
+              useCORS: true,
+              scale: 2,
+            }).then((canvas) => {
+              const url = canvas.toDataURL("image/png")
+              const a = document.createElement("a")
+              a.href = url
+              a.download = "generated.png"
+              a.click()
+            })
+          },
+        },
+      }).mount("#app")
+    </script>
+  </body>
+</html>
