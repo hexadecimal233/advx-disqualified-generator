@@ -14,6 +14,9 @@
       property="twitter:description"
       content="一个生成禁止通行公告的工具。" />
     <title>禁止通行公告生成工具</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
     <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -70,7 +73,7 @@
           <input
             type="text"
             v-model="subText"
-            class="rounded px-2 py-1 bg-gray-700 text-white w-44" />
+            class="rounded px-2 py-1 bg-gray-700 text-white w-44" readonly />
         </label>
         <label class="flex items-center gap-2">
           说明：
@@ -84,18 +87,9 @@
           <input
             type="text"
             v-model="descTextEn"
-            class="rounded px-2 py-1 bg-gray-700 text-white w-56" />
+            class="rounded px-2 py-1 bg-gray-700 text-white w-56" readonly />
         </label>
         <label class="flex items-center gap-2">
-          底部内容类型：
-          <select
-            v-model="footerType"
-            class="rounded px-2 py-1 bg-gray-700 text-white">
-            <option value="image">图片</option>
-            <option value="text">文字</option>
-          </select>
-        </label>
-        <label v-if="footerType==='image'" class="flex items-center gap-2">
           自定义Logo：
           <input
             type="file"
@@ -103,15 +97,7 @@
             accept="image/*,image/svg+xml"
             class="text-sm" />
         </label>
-        <label v-if="footerType==='text'" class="flex items-center gap-2">
-          自定义底部文字：
-          <input
-            type="text"
-            v-model="customFooterText"
-            class="rounded px-2 py-1 bg-gray-700 text-white w-56" />
-        </label>
         <button
-          v-if="footerType==='image'"
           type="button"
           @click="usePresetLogo"
           class="px-3 py-1 rounded bg-gray-700 hover:bg-gray-600">
@@ -125,7 +111,7 @@
       </div>
       <div class="flex justify-center">
         <div
-          class="main-export-area relative w-[675px] h-[1000px] bg-black overflow-hidden"
+          class="main-export-area relative w-[675px] h-[1125px] bg-black rounded-2xl shadow-2xl overflow-hidden"
           id="exportArea"
           :style="{'--main-color': mainColor}"
           data-main-color>
@@ -139,7 +125,7 @@
               alt="symbol" />
           </div>
           <div
-            class="main-block absolute left-6 top-[250px] w-[627px] h-[700px] rounded-xl flex flex-col items-center z-10 overflow-hidden"
+            class="main-block absolute left-6 top-[250px] w-[627px] h-[700px] rounded-xl flex flex-col items-center z-10 shadow-xl overflow-hidden"
             :style="{background: mainColor}">
             <div
               class="main-title mt-16 text-[90px] font-bold text-white text-center leading-tight"
@@ -162,16 +148,10 @@
               {{ descTextEn }}
             </div>
             <img
-              v-if="footerType==='image'"
-              class="logo-img absolute left-1/2 bottom-0 mb-8 -translate-x-1/2 h-[100px] object-contain z-30"
+              class="logo-img absolute left-1/2 bottom-0 mb-8 -translate-x-1/2 w-[300px] h-[100px] object-contain z-30"
               id="logoImg"
               :src="logoImgSrc"
               alt="logo" />
-            <div
-              v-if="footerType==='text'"
-              class="absolute left-1/2 bottom-0 mb-8 -translate-x-1/2 w-full text-center text-white text-[40px] font-bold z-30 select-none pointer-events-none">
-              {{ customFooterText }}
-            </div>
           </div>
         </div>
       </div>
@@ -242,8 +222,6 @@
             descTextEn: presets["default"].descTextEn,
             customLogoUrl: "",
             useCustomLogo: false,
-            footerType: "image",
-            customFooterText: "",
           }
         },
         computed: {
@@ -276,6 +254,9 @@
               this.symbolType = preset.symbol
               this.useCustomLogo = false
               this.customLogoUrl = ""
+              // 预设切换时也自动翻译主标题和说明
+              this.autoTranslateMainToSub()
+              this.autoTranslateDescToEn()
             }
           },
           onCustomLogoChange(e) {
@@ -304,6 +285,40 @@
               a.download = "generated.png"
               a.click()
             })
+          },
+          autoTranslateMainToSub() {
+            if (!this.mainText) {
+              this.subText = '';
+              return;
+            }
+            fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(this.mainText)}&langpair=zh|en`)
+              .then(res => res.json())
+              .then(data => {
+                if (data.responseData && data.responseData.translatedText) {
+                  this.subText = data.responseData.translatedText;
+                }
+              });
+          },
+          autoTranslateDescToEn() {
+            if (!this.descText) {
+              this.descTextEn = '';
+              return;
+            }
+            fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(this.descText)}&langpair=zh|en`)
+              .then(res => res.json())
+              .then(data => {
+                if (data.responseData && data.responseData.translatedText) {
+                  this.descTextEn = data.responseData.translatedText;
+                }
+              });
+          },
+        },
+        watch: {
+          mainText(newVal, oldVal) {
+            this.autoTranslateMainToSub();
+          },
+          descText(newVal, oldVal) {
+            this.autoTranslateDescToEn();
           },
         },
       }).mount("#app")
